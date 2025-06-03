@@ -11,7 +11,11 @@ import matplotlib.pyplot as plt
 import time
 from pcap_to_image_test import pcap_to_image
 
-#router_mac_address = "20:4e:f6:c1:ce:57"
+#home_router = "20:4e:f6:c1:ce:57"
+
+
+
+
 
 
 def setup_monitor(SSH:paramiko.SSHClient, ch, bw, ns, mac=None):
@@ -55,11 +59,10 @@ ssh.connect(collection_params['rpi_address']+"%"+collection_params['interface_id
             password='raspberry',
             timeout=3)
 
-# a sanitizer function is necessary to allow wildcards in filenames
-scp = SCPClient(ssh.get_transport(), sanitize=lambda x: x)
 
 
-
+# sync raspberry pis to standard time
+ssh.exec_command(f'sudo date -s @{time.time()}')
 
 # setup wifi interface monitor on rpi
 if collection_params['enable_mac_filtering']=='0':
@@ -135,11 +138,11 @@ while not new_act=='q':
     if act not in acts.keys():
         acts[act] = [0]
     else:  
-        print(acts)
+        #print(acts)
         acts[act] += [max(acts[act])+1]
 
     new_filename = act + '-' + str(max(acts[act]))
-    
+    print(f'recording {new_filename}.pcap')
 
     # these lines of code do the following:
     #    run the data collection and save to a temporary file
@@ -149,9 +152,11 @@ while not new_act=='q':
     #print(stop_condition)
     stdin, stdout, stderr = ssh.exec_command(f'sudo tcpdump -i wlan0 dst port 5500 -vv -w {new_filename}.pcap ' + stop_condition)
     exit_status = stdout.channel.recv_exit_status()
+    
+    # a sanitizer function is necessary to allow wildcards (*) in filenames
+    with SCPClient(ssh.get_transport(), sanitize=lambda x: x) as scp:
+        scp.get(f'*.pcap', data_path.as_posix())
 
-
-    scp.get(f'*.pcap', data_path.as_posix())
     ssh.exec_command(f'rm ~/*.pcap')
     
     new_act = input('\nactivity (q to quit)? ')
@@ -159,8 +164,8 @@ while not new_act=='q':
 
 
 # turn all pcap files to images and move resulting images to images folder
-for file in list(data_path.glob("*.pcap")):
-    pcap_to_image(file, rmax=2000, is_fig=False, use_time=True, pixels_per_second=100)
+#for file in list(data_path.glob("*.pcap")):
+#    pcap_to_image(file, rmax=2000, is_fig=False, use_time=True, pixels_per_second=500)
 
-for image in list(data_path.glob("*.png")):
-    image.rename(image_path / image.name)
+#for image in list(data_path.glob("*.png")):
+#    image.rename(image_path / image.name)
