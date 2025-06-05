@@ -80,12 +80,10 @@ else:
 
 # find current working directory (cwd) and define file_path: the place where all files will be saved
 cwd = pathlib.Path.cwd()
-data_path = cwd / 'data' / f"{collection_params['channel']}_{collection_params['bandwidth']}"
-image_path = cwd / 'images' / f"{collection_params['channel']}_{collection_params['bandwidth']}"
+data_path = cwd / 'data' / f"{collection_params['channel']}_{collection_params['bandwidth']}" / 'Two_Pis'
 
 # creates file_path from current working directory if it doesn't exist
 data_path.mkdir(parents=True, exist_ok=True)
-image_path.mkdir(parents=True, exist_ok=True)
 
 
 print('current directory:', data_path.as_posix())
@@ -117,9 +115,11 @@ if not len(acts.keys()) == 0:
     print("previous actions in this directory:")
     max_filename_length = max([len(key) for key in acts.keys()])
     for item in acts.items():
-        print(item[0].expandtabs(max_filename_length) + f'\t [{len(item[1])} time{"" if len(item[1])==0 else "s"}]')
+        print(item[0].rjust(max_filename_length) + f'\t [{len(item[1])} time{"" if len(item[1])==0 else "s"}]')
 else:
     print("empty directory")
+
+
 
 
 
@@ -128,6 +128,7 @@ else:
 # the 'time or packets' parameter decides whether to stop after a certain number of packets or seconds
 stop_condition = f"-c {collection_params['n_packets']}" if collection_params['time_or_packets (0/1)']=="1"\
                                                         else f"-G {collection_params['time']} -W 1"
+
 
 new_act = input('\nactivity (q to quit)? ')
 while not new_act=='q':
@@ -150,11 +151,13 @@ while not new_act=='q':
     #    remove .pcap file from raspberry pi
 
     #print(stop_condition)
+
     stdin, stdout, stderr = ssh.exec_command(f'sudo tcpdump -i wlan0 dst port 5500 -vv -w {new_filename}.pcap ' + stop_condition)
     exit_status = stdout.channel.recv_exit_status()
     
     # a sanitizer function is necessary to allow wildcards (*) in filenames
     with SCPClient(ssh.get_transport(), sanitize=lambda x: x) as scp:
+        print(exit_status)
         scp.get(f'*.pcap', data_path.as_posix())
 
     ssh.exec_command(f'rm ~/*.pcap')
@@ -164,7 +167,7 @@ while not new_act=='q':
 
 
 # turn all pcap files to images and move resulting images to images folder
-#for file in list(data_path.glob("*.pcap")):
+# for file in list(data_path.glob("*.pcap")):
 #    pcap_to_image(file, rmax=2000, is_fig=False, use_time=True, pixels_per_second=500)
 
 #for image in list(data_path.glob("*.png")):
